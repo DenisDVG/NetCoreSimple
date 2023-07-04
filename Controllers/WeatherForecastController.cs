@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NetCoreSimple.Db;
+using System;
+using System.Linq;
 
 namespace NetCoreSimple.Controllers
 {
@@ -15,22 +18,33 @@ namespace NetCoreSimple.Controllers
     };
 
         private readonly ILogger<WeatherForecastController> _logger;
+        private readonly AppDbContext _appDbContext;
 
-        public WeatherForecastController(ILogger<WeatherForecastController> logger)
+        public WeatherForecastController(ILogger<WeatherForecastController> logger,
+            AppDbContext appDbContext)
         {
             _logger = logger;
+            _appDbContext = appDbContext;
         }
 
         [HttpGet(Name = "GetWeatherForecast")]
-        public IEnumerable<WeatherForecast> Get()
+        public async Task<IEnumerable<WeatherForecast>> Get()
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            var weatherForecast = new WeatherForecast
             {
-                Date = DateTime.Now.AddDays(index),
+                Date = DateTime.Now,
                 TemperatureC = Random.Shared.Next(-20, 55),
                 Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-            })
-            .ToArray();
+            };
+
+            var result = await _appDbContext.WeatherForecasts.AddAsync(weatherForecast);
+            await _appDbContext.SaveChangesAsync();
+
+             var weatherForecasts = await _appDbContext.WeatherForecasts
+                .OrderByDescending(x => x)
+                .Take(2)
+                .ToListAsync();
+            return weatherForecasts;
         }
     }
 }
